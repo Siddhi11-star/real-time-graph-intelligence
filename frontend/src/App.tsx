@@ -21,11 +21,13 @@ import { GraphPage } from './pages/GraphPage';
 import { AnomaliesPage } from './pages/AnomaliesPage';
 import { StreamPage } from './pages/StreamPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { DatasetUploadModal } from './components/DatasetUploadModal';
 
 export const App: React.FC = () => {
   // Navigation & Theme
   const [activePage, setActivePage] = useState<AppPage>('overview');
   const [theme, setTheme] = useState<AppTheme>('dark');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
 
   // Graph and Stream State
   const [nodes, setNodes] = useState<GraphNodeData[]>(INITIAL_ENTITIES);
@@ -287,6 +289,13 @@ export const App: React.FC = () => {
         onChangePage={setActivePage}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onOpenUploadModal={() => setIsUploadModalOpen(true)}
+      />
+
+      {/* Dataset Upload Modal */}
+      <DatasetUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
       />
 
       {/* Main Multi-Page Content Area */}
@@ -298,6 +307,7 @@ export const App: React.FC = () => {
             events={events}
             onChangePage={setActivePage}
             onTriggerScenario={handleTriggerScenario}
+            onOpenUploadModal={() => setIsUploadModalOpen(true)}
           />
         )}
 
@@ -336,6 +346,7 @@ export const App: React.FC = () => {
             speedMs={speedMs}
             onChangeSpeed={handleChangeSpeed}
             onSelectEntity={handleSelectEntityByName}
+            onOpenUploadModal={() => setIsUploadModalOpen(true)}
           />
         )}
 

@@ -7,7 +7,8 @@ import {
   ShieldAlert, 
   Pause, 
   Play, 
-  Code
+  Code,
+  Upload
 } from 'lucide-react';
 
 interface StreamPageProps {
@@ -18,6 +19,7 @@ interface StreamPageProps {
   speedMs: number;
   onChangeSpeed: (speed: number) => void;
   onSelectEntity: (entityId: string) => void;
+  onOpenUploadModal?: () => void;
 }
 
 const RELATION_BADGES: Record<RelationshipType, { bg: string; text: string; border: string }> = {
@@ -37,6 +39,7 @@ export const StreamPage: React.FC<StreamPageProps> = ({
   speedMs,
   onChangeSpeed,
   onSelectEntity,
+  onOpenUploadModal,
 }) => {
   const [selectedRelation, setSelectedRelation] = useState<string>('all');
   const [selectedEventRaw, setSelectedEventRaw] = useState<StreamEvent | null>(null);
@@ -99,6 +102,16 @@ export const StreamPage: React.FC<StreamPageProps> = ({
               </button>
             ))}
           </div>
+
+          {onOpenUploadModal && (
+            <button
+              onClick={onOpenUploadModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 transition-all"
+            >
+              <Upload className="w-3.5 h-3.5 text-rose-500" />
+              <span>Ingest Dataset</span>
+            </button>
+          )}
 
           <button
             onClick={onClearEvents}

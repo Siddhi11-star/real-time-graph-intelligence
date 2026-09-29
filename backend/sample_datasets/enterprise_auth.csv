@@ -1,0 +1,10 @@
+source,source_type,relationship,target,target_type,risk_score,is_anomaly,description
+usr-david,User,logged_in_to,dev-ws-david,Device,10,false,Normal morning login
+dev-ws-david,Device,connected_to,10.0.0.1,IP,5,false,Gateway routing
+10.0.0.1,IP,requested,internal-portal.corp,Domain,5,false,Internal portal query
+usr-david,User,accessed,sess-vpn-02,Session,12,false,VPN tunnel initiated
+usr-elena,User,logged_in_to,dev-ws-elena,Device,15,false,Standard session
+dev-ws-elena,Device,connected_to,dev-db01,Device,88,true,Unauthorized database access attempt from workstation
+dev-ws-elena,Device,spawned,powershell.exe,Process,85,true,Encoded command execution
+194.26.29.112,IP,connected_to,dev-gw01,Device,95,true,Credential brute force burst
+usr-contractor-9,User,authenticated_as,usr-admin,User,92,true,Direct token elevation to admin

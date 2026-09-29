@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   BarChart3,
   Sun,
-  Moon
+  Moon,
+  Upload
 } from 'lucide-react';
 import type { NetworkStats, AppPage, AppTheme } from '../types/graph';
 
@@ -28,6 +29,7 @@ interface HeaderProps {
   onChangePage: (page: AppPage) => void;
   theme: AppTheme;
   onToggleTheme: () => void;
+  onOpenUploadModal: () => void;
 }
 
 const NAV_ITEMS: { id: AppPage; label: string; icon: React.FC<{ className?: string }> }[] = [
@@ -51,6 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   onChangePage,
   theme,
   onToggleTheme,
+  onOpenUploadModal,
 }) => {
   return (
     <header className="w-full glass-panel px-4 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/[0.08] sticky top-0 z-50">
@@ -223,6 +226,16 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Custom Dataset Upload Modal Trigger */}
+        <button
+          onClick={onOpenUploadModal}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/70 dark:bg-white/[0.08] hover:bg-white/90 dark:hover:bg-white/[0.14] text-slate-800 dark:text-white border border-slate-300/70 dark:border-white/10 shadow-sm transition-all"
+          title="Upload or load external cybersecurity dataset"
+        >
+          <Upload className="w-3.5 h-3.5 text-rose-500" />
+          <span className="hidden sm:inline">Ingest Dataset</span>
+        </button>
 
         {/* Reset Graph */}
         <button

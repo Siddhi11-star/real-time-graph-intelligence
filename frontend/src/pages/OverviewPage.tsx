@@ -10,7 +10,8 @@ import {
   Share2, 
   CheckCircle2, 
   Sparkles,
-  Server
+  Server,
+  Upload
 } from 'lucide-react';
 import type { 
   NetworkStats, 
@@ -25,6 +26,7 @@ interface OverviewPageProps {
   events: StreamEvent[];
   onChangePage: (page: AppPage) => void;
   onTriggerScenario: (scenario: 'lateral_movement' | 'credential_stuffing' | 'dns_exfil' | 'privilege_escalation') => void;
+  onOpenUploadModal?: () => void;
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
@@ -33,6 +35,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   events,
   onChangePage,
   onTriggerScenario,
+  onOpenUploadModal,
 }) => {
   return (
     <div className="space-y-6">
@@ -80,6 +83,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <BarChart3 className="w-4 h-4 text-rose-500 dark:text-rose-400" />
               <span>Run Graph Algorithms</span>
             </button>
+
+            {onOpenUploadModal && (
+              <button
+                onClick={onOpenUploadModal}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-xs md:text-sm font-semibold transition-all"
+              >
+                <Upload className="w-4 h-4 text-rose-500" />
+                <span>Ingest Dataset (CSV/Zeek/JSON)</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

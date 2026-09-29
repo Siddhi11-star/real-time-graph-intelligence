@@ -1,0 +1,52 @@
+[
+  {
+    "id": "dns-1",
+    "timestamp": "20:10:01",
+    "source": "192.168.1.44",
+    "source_type": "IP",
+    "relationship": "requested",
+    "target": "google.com",
+    "target_type": "Domain",
+    "risk_score": 5.0,
+    "is_anomaly": false,
+    "metadata": { "record_type": "A" }
+  },
+  {
+    "id": "dns-2",
+    "timestamp": "20:10:03",
+    "source": "192.168.1.44",
+    "source_type": "IP",
+    "relationship": "requested",
+    "target": "github.com",
+    "target_type": "Domain",
+    "risk_score": 5.0,
+    "is_anomaly": false,
+    "metadata": { "record_type": "A" }
+  },
+  {
+    "id": "dns-3",
+    "timestamp": "20:10:06",
+    "source": "192.168.1.88",
+    "source_type": "IP",
+    "relationship": "requested",
+    "target": "v3-beacon-sync.dark-telemetry.xyz",
+    "target_type": "Domain",
+    "risk_score": 96.0,
+    "is_anomaly": true,
+    "anomaly_reason": "High entropy Base64 TXT DNS query burst indicating active data exfiltration tunnel.",
+    "metadata": { "record_type": "TXT", "entropy": 5.12, "payload_bytes": 10240 }
+  },
+  {
+    "id": "dns-4",
+    "timestamp": "20:10:08",
+    "source": "192.168.1.88",
+    "source_type": "IP",
+    "relationship": "connected_to",
+    "target": "104.244.42.1",
+    "target_type": "IP",
+    "risk_score": 85.0,
+    "is_anomaly": true,
+    "anomaly_reason": "Outbound connection to unresolved external IP immediately following anomalous DNS tunneling query.",
+    "metadata": { "port": 8443, "proto": "tcp" }
+  }
+]
