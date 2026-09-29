@@ -31,6 +31,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 logs/

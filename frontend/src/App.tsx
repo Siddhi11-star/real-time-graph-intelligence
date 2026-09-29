@@ -159,30 +159,43 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Connect to local simulation engine on mount
+  const wsRef = React.useRef<WebSocket | null>(null);
+
+  // Connect to backend WebSocket on mount
   useEffect(() => {
     mockStreamService.subscribe(handleIncomingEvent);
 
-    // Optional: Probe FastAPI WebSocket if present
     try {
       const ws = new WebSocket('ws://localhost:8000/ws/events');
+      wsRef.current = ws;
+
       ws.onopen = () => {
         setBackendConnected(true);
         mockStreamService.pause();
       };
+
       ws.onmessage = (msg) => {
         try {
           const parsed = JSON.parse(msg.data);
-          if (parsed.event) {
+          if (parsed.type === 'INITIAL_SNAPSHOT' && parsed.snapshot) {
+            if (parsed.snapshot.nodes && parsed.snapshot.nodes.length > 0) {
+              setNodes(parsed.snapshot.nodes);
+            }
+            if (parsed.snapshot.edges && parsed.snapshot.edges.length > 0) {
+              setEdges(parsed.snapshot.edges);
+            }
+          } else if (parsed.event) {
             handleIncomingEvent(parsed.event, parsed.anomaly);
           }
         } catch {
           // ignore
         }
       };
+
       ws.onerror = () => {
         setBackendConnected(false);
       };
+
       ws.onclose = () => {
         setBackendConnected(false);
       };
@@ -191,28 +204,49 @@ export const App: React.FC = () => {
         ws.close();
       };
     } catch {
-      // Backend not running yet, in-memory mock active
+      // Backend not running, local in-memory fallback active
     }
   }, [handleIncomingEvent]);
 
   // Controls handlers
   const handleTogglePlay = () => {
-    if (isRunning) {
-      mockStreamService.pause();
-      setIsRunning(false);
+    if (backendConnected && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ action: isRunning ? 'pause' : 'resume' }));
+      setIsRunning(!isRunning);
     } else {
-      mockStreamService.resume();
-      setIsRunning(true);
+      if (isRunning) {
+        mockStreamService.pause();
+        setIsRunning(false);
+      } else {
+        mockStreamService.resume();
+        setIsRunning(true);
+      }
     }
   };
 
   const handleChangeSpeed = (speed: number) => {
     setSpeedMs(speed);
-    mockStreamService.setSpeed(speed);
+    if (backendConnected && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ action: 'set_speed', tick_seconds: speed / 1000 }));
+    } else {
+      mockStreamService.setSpeed(speed);
+    }
   };
 
-  const handleTriggerScenario = (scenario: 'lateral_movement' | 'credential_stuffing' | 'dns_exfil' | 'privilege_escalation') => {
-    mockStreamService.triggerScenario(scenario);
+  const handleTriggerScenario = async (scenario: 'lateral_movement' | 'credential_stuffing' | 'dns_exfil' | 'privilege_escalation') => {
+    if (backendConnected) {
+      try {
+        await fetch('http://localhost:8000/api/graph/scenarios/inject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario }),
+        });
+      } catch {
+        mockStreamService.triggerScenario(scenario);
+      }
+    } else {
+      mockStreamService.triggerScenario(scenario);
+    }
   };
 
   const handleResetGraph = () => {
