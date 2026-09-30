@@ -12,7 +12,9 @@ import {
   BarChart3,
   Sun,
   Moon,
-  Upload
+  Upload,
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import type { NetworkStats, AppPage, AppTheme } from '../types/graph';
 
@@ -55,6 +57,32 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenUploadModal,
 }) => {
+  const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false);
+
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/graph/reports/forensic-pdf');
+      if (!response.ok) {
+        throw new Error('Failed to generate forensic audit PDF');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `incident_forensic_report_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      window.open('http://localhost:8000/api/graph/reports/forensic-pdf', '_blank');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <header className="w-full glass-panel px-4 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-white/[0.08] sticky top-0 z-50">
       {/* Left: Brand Identity & Active Page Links */}
@@ -235,6 +263,21 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Upload className="w-3.5 h-3.5 text-rose-500" />
           <span className="hidden sm:inline">Ingest Dataset</span>
+        </button>
+
+        {/* Forensic Audit PDF Download Trigger */}
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isDownloadingPdf}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/70 dark:bg-white/[0.08] hover:bg-white/90 dark:hover:bg-white/[0.14] text-slate-800 dark:text-white border border-slate-300/70 dark:border-white/10 shadow-sm transition-all disabled:opacity-60 cursor-pointer"
+          title="Download compiled Forensic Incident Audit PDF report"
+        >
+          {isDownloadingPdf ? (
+            <Loader2 className="w-3.5 h-3.5 text-rose-500 animate-spin" />
+          ) : (
+            <FileDown className="w-3.5 h-3.5 text-rose-500" />
+          )}
+          <span className="hidden sm:inline">{isDownloadingPdf ? 'Generating...' : 'Audit PDF'}</span>
         </button>
 
         {/* Reset Graph */}
