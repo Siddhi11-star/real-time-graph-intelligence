@@ -1,4 +1,4 @@
-# Real-Time Graph Intelligence Platform (AetherGraph) 🌸⚡
+# Real-Time Graph Intelligence Platform (AetherGraph) ⚡
 
 A local-first, open-source web platform that continuously ingests streaming event data, converts complex entity relationships into a dynamic graph in near real-time, and surfaces explainable anomaly detections and topological analytics.
 
