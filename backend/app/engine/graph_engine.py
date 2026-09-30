@@ -294,4 +294,189 @@ class NetworkGraphEngine:
         except nx.NetworkXNoPath:
             return ShortestPathResponse(found=False, path=[], edge_ids=[], distance=0)
 
+    def rehydrate_from_db(self):
+        """Rebuild in-memory graph from persisted EventRecord entries on server boot."""
+        from app.models.database import SessionLocal, EventRecord
+        db = SessionLocal()
+        try:
+            records = db.query(EventRecord).order_by(EventRecord.created_at.asc()).limit(5000).all()
+            for rec in records:
+                self.add_node(
+                    node_id=rec.source,
+                    label=rec.source,
+                    node_type=rec.source_type,
+                    risk_score=rec.risk_score,
+                    metadata=rec.get_metadata(),
+                    is_anomaly=rec.is_anomaly,
+                    anomaly_reason=rec.anomaly_reason,
+                    timestamp=rec.timestamp
+                )
+                self.add_node(
+                    node_id=rec.target,
+                    label=rec.target,
+                    node_type=rec.target_type,
+                    risk_score=rec.risk_score,
+                    metadata=rec.get_metadata(),
+                    is_anomaly=rec.is_anomaly,
+                    anomaly_reason=rec.anomaly_reason,
+                    timestamp=rec.timestamp
+                )
+                edge_id = f"e-{rec.id}"
+                self.add_edge(
+                    edge_id=edge_id,
+                    source=rec.source,
+                    target=rec.target,
+                    relationship=rec.relationship,
+                    timestamp=rec.timestamp,
+                    risk_score=rec.risk_score,
+                    is_anomaly=rec.is_anomaly
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger("graph_engine").warning(f"Graph rehydration failed: {e}")
+        finally:
+            db.close()
+
+    def get_node(self, node_id: str) -> Optional[GraphNode]:
+        """Fetch details for a single node."""
+        if not self.graph.has_node(node_id):
+            return None
+        n_data = self.graph.nodes[node_id]
+        in_d = self.graph.in_degree(node_id)
+        out_d = self.graph.out_degree(node_id)
+        metrics = self.compute_topological_metrics()
+        pr_scores = metrics.get("pagerank", {})
+        comm_map = metrics.get("communities", {})
+
+        return GraphNode(
+            id=node_id,
+            label=n_data.get("label", node_id),
+            type=n_data.get("type", "Device"),
+            risk_score=n_data.get("risk_score", 10.0),
+            is_anomaly=n_data.get("is_anomaly", False),
+            anomaly_reason=n_data.get("anomaly_reason"),
+            degree=in_d + out_d,
+            in_degree=in_d,
+            out_degree=out_d,
+            pagerank=pr_scores.get(node_id, 0.0),
+            community_id=comm_map.get(node_id, 1),
+            metadata=self.node_metadata.get(node_id, {}),
+            first_seen=n_data.get("first_seen"),
+            last_seen=n_data.get("last_seen")
+        )
+
+    def get_neighborhood(self, center_node_id: str, hops: int = 1, direction: str = 'both') -> Dict[str, Any]:
+        """Extract k-hop ego-graph around an entity."""
+        if not isinstance(direction, str) or direction not in ('in', 'out', 'both'):
+            direction = 'both'
+        if not isinstance(hops, int) or hops < 1:
+            hops = 1
+
+        if not self.graph.has_node(center_node_id):
+            return {"center_node_id": center_node_id, "hops": hops, "nodes": [], "edges": []}
+
+        visited_nodes = {center_node_id}
+        frontier = {center_node_id}
+
+        for _ in range(hops):
+            next_frontier = set()
+            for current in frontier:
+                if direction in ('out', 'both'):
+                    for _, target in self.graph.out_edges(current):
+                        if target not in visited_nodes:
+                            next_frontier.add(target)
+                if direction in ('in', 'both'):
+                    for source, _ in self.graph.in_edges(current):
+                        if source not in visited_nodes:
+                            next_frontier.add(source)
+            visited_nodes.update(next_frontier)
+            frontier = next_frontier
+            if not frontier:
+                break
+
+        metrics = self.compute_topological_metrics()
+        pr_scores = metrics.get("pagerank", {})
+        comm_map = metrics.get("communities", {})
+
+        sub_nodes = []
+        for nid in visited_nodes:
+            n_data = self.graph.nodes[nid]
+            in_d = self.graph.in_degree(nid)
+            out_d = self.graph.out_degree(nid)
+            sub_nodes.append(GraphNode(
+                id=nid,
+                label=n_data.get("label", nid),
+                type=n_data.get("type", "Device"),
+                risk_score=n_data.get("risk_score", 10.0),
+                is_anomaly=n_data.get("is_anomaly", False),
+                anomaly_reason=n_data.get("anomaly_reason"),
+                degree=in_d + out_d,
+                in_degree=in_d,
+                out_degree=out_d,
+                pagerank=pr_scores.get(nid, 0.0),
+                community_id=comm_map.get(nid, 1),
+                metadata=self.node_metadata.get(nid, {}),
+                first_seen=n_data.get("first_seen"),
+                last_seen=n_data.get("last_seen")
+            ))
+
+        sub_edges = []
+        for eid, r in self.edge_records.items():
+            if r["source"] in visited_nodes and r["target"] in visited_nodes:
+                sub_edges.append(GraphEdge(
+                    id=eid,
+                    source=r["source"],
+                    target=r["target"],
+                    label=r["label"],
+                    timestamp=r["timestamp"],
+                    is_anomaly=r.get("is_anomaly", False),
+                    anomaly_score=r.get("risk_score", 0.0)
+                ))
+
+        return {
+            "center_node_id": center_node_id,
+            "hops": hops,
+            "nodes": [n.model_dump() for n in sub_nodes],
+            "edges": [e.model_dump() for e in sub_edges]
+        }
+
+    def filter_nodes(
+        self,
+        node_type: Optional[str] = None,
+        min_risk: Optional[float] = None,
+        is_anomaly: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> List[GraphNode]:
+        """Query and filter nodes by type, risk score, anomaly status, or substring."""
+        if not isinstance(node_type, str):
+            node_type = None
+        if not isinstance(min_risk, (int, float)):
+            min_risk = None
+        if not isinstance(is_anomaly, bool):
+            is_anomaly = None
+        if not isinstance(search, str):
+            search = None
+
+        snapshot = self.get_snapshot()
+        nodes: List[Dict[str, Any]] = snapshot.get("nodes", [])
+        filtered = []
+        for n in nodes:
+            if node_type and n["type"].lower() != node_type.lower():
+                continue
+            if min_risk is not None and n["risk_score"] < min_risk:
+                continue
+            if is_anomaly is not None and n["is_anomaly"] != is_anomaly:
+                continue
+            if search:
+                s_lower = search.lower()
+                if s_lower not in n["id"].lower() and s_lower not in n["label"].lower():
+                    continue
+            filtered.append(GraphNode(**n))
+        return filtered
+
+    def bulk_process_events(self, events: List[StreamEvent]):
+        """Efficiently ingest a batch of StreamEvents into NetworkX."""
+        for evt in events:
+            self.process_stream_event(evt)
+
 graph_engine = NetworkGraphEngine()

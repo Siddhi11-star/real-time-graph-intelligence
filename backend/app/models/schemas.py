@@ -86,3 +86,34 @@ class ShortestPathResponse(BaseModel):
 
 class ScenarioRequest(BaseModel):
     scenario: Literal['lateral_movement', 'credential_stuffing', 'dns_exfil', 'privilege_escalation']
+
+AnomalyStatusType = Literal['open', 'investigating', 'resolved', 'false_positive']
+
+class AnomalyUpdateRequest(BaseModel):
+    status: Optional[AnomalyStatusType] = None
+    notes: Optional[str] = None
+
+class AnomalyResponse(BaseModel):
+    id: str
+    timestamp: str
+    title: str
+    entity_id: str
+    entity_type: str
+    severity: str
+    score: float
+    status: str = "open"
+    notes: Optional[str] = None
+    reasons: List[str] = Field(default_factory=list)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+
+class EntityDetailResponse(BaseModel):
+    node: GraphNode
+    incident_count: int
+    neighbors: List[GraphNode]
+    edges: List[GraphEdge]
+
+class NeighborhoodResponse(BaseModel):
+    center_node_id: str
+    hops: int
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]

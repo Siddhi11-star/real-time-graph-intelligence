@@ -9,3 +9,5 @@ websockets>=13.0
 python-dotenv>=1.0.1
 python-multipart>=0.0.20
 reportlab>=4.2.0
+httpx>=0.28.0
+pytest>=8.0.0

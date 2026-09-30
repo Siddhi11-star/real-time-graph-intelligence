@@ -6,6 +6,7 @@ from app.config import settings
 from app.models.database import init_db
 from app.routers import graph_routes, ws_routes
 from app.services.stream_service import stream_service
+from app.engine.graph_engine import graph_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,9 +16,11 @@ logger = logging.getLogger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB and start real-time event generator
+    # Startup: Initialize DB, rehydrate graph state, and start real-time event generator
     logger.info("Initializing persistence database...")
     init_db()
+    logger.info("Rehydrating graph engine topology from persistence...")
+    graph_engine.rehydrate_from_db()
     logger.info("Starting background event stream worker...")
     stream_service.start()
     yield

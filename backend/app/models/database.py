@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Float, Boolean, Text, DateTime, Integer
+from sqlalchemy import create_engine, Column, String, Float, Boolean, Text, DateTime, Integer, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import settings
 
@@ -51,6 +51,8 @@ class AnomalyRecord(Base):
     entity_type = Column(String(50), nullable=False)
     severity = Column(String(20), nullable=False)
     score = Column(Float, nullable=False)
+    status = Column(String(30), default="open", index=True)
+    notes = Column(Text, nullable=True)
     reasons_json = Column(Text, default="[]")
     metrics_json = Column(Text, default="{}")
 
@@ -74,6 +76,17 @@ class AnomalyRecord(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE anomalies ADD COLUMN status VARCHAR(30) DEFAULT 'open'"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE anomalies ADD COLUMN notes TEXT"))
+            conn.commit()
+        except Exception:
+            pass
 
 def get_db():
     db = SessionLocal()

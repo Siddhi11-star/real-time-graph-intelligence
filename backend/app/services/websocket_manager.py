@@ -27,6 +27,13 @@ class ConnectionManager:
         }
         await self.broadcast_json(payload)
 
+    async def broadcast_snapshot(self, snapshot_data: dict):
+        payload = {
+            "type": "INITIAL_SNAPSHOT",
+            "snapshot": snapshot_data
+        }
+        await self.broadcast_json(payload)
+
     async def broadcast_json(self, data: dict):
         message = json.dumps(data)
         disconnected = []
