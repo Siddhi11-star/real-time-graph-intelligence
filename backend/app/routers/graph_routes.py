@@ -1,7 +1,8 @@
 import os
+import time
 import asyncio
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from app.models.schemas import (
     GraphSnapshot, 
@@ -10,8 +11,10 @@ from app.models.schemas import (
     ScenarioRequest
 )
 from app.engine.graph_engine import graph_engine
+from app.engine.ml_detector import ml_detector
 from app.services.stream_service import stream_service
 from app.services.dataset_parser import DatasetParser
+from app.services.report_generator import ForensicReportGenerator
 from app.models.database import get_db, AnomalyRecord, EventRecord
 
 router = APIRouter(prefix="/graph", tags=["Graph Operations"])
@@ -161,3 +164,37 @@ async def ingest_sample_dataset(
         "anomalies_count": anomalies_count,
         "mode": mode
     }
+
+@router.get("/ml/anomalies")
+def get_ml_anomalies():
+    """
+    Run unsupervised scikit-learn Isolation Forest on node embedding features:
+    (in_degree, out_degree, total_degree, pagerank, betweenness, relationship_entropy, risk_score).
+    """
+    return ml_detector.train_and_predict()
+
+@router.post("/ml/retrain")
+def retrain_ml_model(contamination: float = Query(0.15, gt=0.01, lt=0.5)):
+    """Re-train the Isolation Forest model with specified contamination threshold."""
+    ml_detector.contamination = contamination
+    return ml_detector.train_and_predict()
+
+@router.get("/reports/forensic-summary")
+def get_forensic_summary_report():
+    """Retrieve structured JSON Incident Forensic Summary report."""
+    return ForensicReportGenerator.get_forensic_data()
+
+@router.get("/reports/forensic-pdf")
+def download_forensic_pdf():
+    """Download compiled Incident Forensic Summary report as binary PDF."""
+    data = ForensicReportGenerator.get_forensic_data()
+    pdf_bytes = ForensicReportGenerator.generate_pdf(data)
+    filename = f"incident_forensic_report_{int(time.time())}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+

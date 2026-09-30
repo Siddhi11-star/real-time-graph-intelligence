@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import time
 import random
 import logging
 from typing import Optional
@@ -25,7 +26,7 @@ NORMAL_TRAFFIC_PAIRS = [
 class EventStreamService:
     def __init__(self):
         self.is_running = True
-        self.event_counter = 100
+        self.event_counter = int(time.time() * 100) % 10000000
         self.tick_seconds = settings.STREAM_TICK_SECONDS
         self._task: Optional[asyncio.Task] = None
 
@@ -174,6 +175,7 @@ class EventStreamService:
         graph_engine.process_stream_event(event)
 
         # 3. Persist to Database asynchronously
+        db = None
         try:
             db = SessionLocal()
             evt_rec = EventRecord(
@@ -189,7 +191,7 @@ class EventStreamService:
                 anomaly_reason=event.anomaly_reason,
             )
             evt_rec.set_metadata(event.metadata)
-            db.add(evt_rec)
+            db.merge(evt_rec)
 
             if alert:
                 anom_rec = AnomalyRecord(
@@ -203,12 +205,16 @@ class EventStreamService:
                 )
                 anom_rec.set_reasons(alert.reasons)
                 anom_rec.set_metrics(alert.metrics.model_dump())
-                db.add(anom_rec)
+                db.merge(anom_rec)
 
             db.commit()
-            db.close()
         except Exception as e:
+            if db:
+                db.rollback()
             logger.warning(f"Database write skipped: {e}")
+        finally:
+            if db:
+                db.close()
 
         # 4. Broadcast live packet to connected WebSocket frontend clients
         await ws_manager.broadcast_event(

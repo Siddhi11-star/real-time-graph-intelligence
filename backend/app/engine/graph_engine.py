@@ -71,8 +71,10 @@ class NetworkGraphEngine:
         risk_score: float = 10.0, 
         metadata: Optional[Dict[str, Any]] = None,
         is_anomaly: bool = False,
-        anomaly_reason: Optional[str] = None
+        anomaly_reason: Optional[str] = None,
+        timestamp: Optional[str] = None
     ):
+        ts = timestamp or "18:20:00"
         if not self.graph.has_node(node_id):
             self.graph.add_node(
                 node_id, 
@@ -80,13 +82,18 @@ class NetworkGraphEngine:
                 type=node_type, 
                 risk_score=risk_score,
                 is_anomaly=is_anomaly,
-                anomaly_reason=anomaly_reason
+                anomaly_reason=anomaly_reason,
+                first_seen=ts,
+                last_seen=ts
             )
             self.node_metadata[node_id] = metadata or {}
         else:
             # Update attributes
             curr_risk = self.graph.nodes[node_id].get("risk_score", 10.0)
             self.graph.nodes[node_id]["risk_score"] = max(curr_risk, risk_score)
+            self.graph.nodes[node_id]["last_seen"] = ts
+            if not self.graph.nodes[node_id].get("first_seen"):
+                self.graph.nodes[node_id]["first_seen"] = ts
             if is_anomaly:
                 self.graph.nodes[node_id]["is_anomaly"] = True
                 if anomaly_reason:
@@ -138,7 +145,8 @@ class NetworkGraphEngine:
             event.risk_score, 
             event.metadata,
             event.is_anomaly,
-            event.anomaly_reason
+            event.anomaly_reason,
+            timestamp=event.timestamp
         )
         self.add_node(
             event.target, 
@@ -147,7 +155,8 @@ class NetworkGraphEngine:
             event.risk_score, 
             event.metadata,
             event.is_anomaly,
-            event.anomaly_reason
+            event.anomaly_reason,
+            timestamp=event.timestamp
         )
         edge_id = f"e-{event.id}"
         self.add_edge(
@@ -182,7 +191,9 @@ class NetworkGraphEngine:
                 out_degree=out_d,
                 pagerank=pr_scores.get(node_id, 0.0),
                 community_id=comm_map.get(node_id, 1),
-                metadata=self.node_metadata.get(node_id, {})
+                metadata=self.node_metadata.get(node_id, {}),
+                first_seen=n_data.get("first_seen"),
+                last_seen=n_data.get("last_seen")
             ))
 
         edges_list = []
